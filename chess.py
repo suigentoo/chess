@@ -155,3 +155,53 @@ class Chess():
             self.queen_plays(piece)
         elif piece.piece == 'king':
             self.king_plays(piece)
+
+    def set_plays(self):
+        for w in whites:
+            self.whites_plays = [list(play) for play in set(tuple(play) for play in self.whites_plays + w.plays)]
+        for b in blacks:
+            self.blacks_plays = [list(play) for play in set(tuple(play) for play in self.blacks_plays + b.plays)]
+
+    def valid_move(self, piece, row, col):
+        if [row,col] in piece.plays:
+            color = piece.color
+            rho = piece.row
+            kol = piece.col
+            capture = self.move(piece, row, col)
+            # moving piece puts self in check
+            if self.self_check(color) == True:
+                self.move(piece, rho, kol)
+                self.move(capture, row, col)
+                return False
+            # capture a piece
+            elif capture != None:
+                # remove piece from opponents playable pieces 
+                # and adds it to captures
+                if color == 'white':
+                    self.whites_captures.append(capture)
+                    self.whites.remove(capture)
+                else:
+                    self.blacks_captures.append(capture)
+                    self.blacks.remove(capture)
+            return True
+        else:
+            return False
+
+    def move(self, piece, row, col):
+        self.board[piece.row][piece.col] = None
+        # item at [row,col]
+        capture = self.board[row][col]
+        # modify piece properties and moving
+        piece.row = row
+        piece.col = col
+        self.board[row][col] = piece
+        return capture
+                
+    def self_check(self, color):
+        if color == 'white':
+            if [self.__white_king.row, self.__white_king.col] in self.blacks_plays:
+                return True
+        else:
+            if [self.__black_king.row, self.__black_king.col] in self.whites_plays:
+                return True
+        return False
