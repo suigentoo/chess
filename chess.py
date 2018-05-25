@@ -56,14 +56,14 @@ class Chess():
         self.blacks.append(ChessPiece('knight', 'black', 0, 6))
         self.blacks.append(ChessPiece('rook', 'black', 0, 7))
         # place pieces on chess board in starting position
-        # and keep track of the kings' position
+        # and keep track of the kings
         for w in self.whites:
             if w.piece == 'king':
-                self.__white_king = [w.row, w.col]
+                self.__white_king = w
             self.board[w.row][w.col] = w
         for b in self.blacks:
             if b.piece == 'king':
-                self.__black_king = [b.row, b.col]
+                self.__black_king = b
             self.board[b.row][b.col] = b
             
     def ray_trace(self, piece, x, y, n, can_capture=True, has_to_capture=False):
@@ -83,6 +83,7 @@ class Chess():
                     elif self.board[row][col].color != color:
                         play.append([row, col])
                         n = 0
+                # pawn's vertical movement and other piece's movements excluding knight
                 else:
                     if self.board[row][col] == None: 
                         moves.append([row, col])
