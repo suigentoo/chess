@@ -1,208 +1,321 @@
-class ChessPiece():
-    __dict = {'white':{'pawn':'♙','rook':'♖','knight':'♘','bishop':'♗','king':'♔','queen':'♕'},
-              'black':{'pawn':'♟','rook':'♜','knight':'♞','bishop':'♝','king':'♚','queen':'♛'}}
-    def __init__(self, piece, color, row, col):
-        self.color = color
-        self.piece = piece
-        self.symbol = self.__dict[color][piece]
-        self.dir = (1, -1)[color == 'white']
-        self.row = row
-        self.col = col
-        self.has_moved = False
-        self.plays = []
-        
-    def set_plays(self, moves):
-        self.play = [list(play) for play in set(tuple(play) for play in self.plays + moves)]
-        
-    def __repr__(self):
-        return 'ChessPiece({}, [{},{}], {}, {})'.format(self.symbol, self.row, self.col, self.plays, self.has_moved)
+import copy
+import chesspiece
 
 class Chess():
-    __col = 'ABCDEFGH'
     __row = '87654321'
-    
-    whites = []
-    blacks = []
-    
-    whites_plays = []
-    blacks_plays = []
-    
+    __col = 'ABCDEFGH'
+    __white_king = None
+    __black_king = None
     
     def __init__(self):
+        # contains all active pieces/pieces on the board
+        self.white = []
+        self.black = []
+        # respective arrays contains opponent's pieces that were captured
+        self.white_captures = []
+        self.black_captures = []
+        # contains moves
+        self.white_move_set = []
+        self.black_move_set = []
+        # contains playable pieces, those that can move
+        self.white_playables = []
+        self.black_playables = []
         self.setup()
 
     def setup(self):
         self.board = [[None for i in range(8)] for j in range(8)]
         # create minor pieces(pawns)
         for col in range(8):
-            self.whites.append(ChessPiece('pawn', 'white', 6, col))
-            self.blacks.append(ChessPiece('pawn', 'black', 1, col))
+            self.white.append(ChessPiece('pawn', 'white', 6, col))
+            self.black.append(ChessPiece('pawn', 'black', 1, col))
         # create white major pieces
-        self.whites.append(ChessPiece('rook', 'white', 7, 0))
-        self.whites.append(ChessPiece('knight', 'white', 7, 1))
-        self.whites.append(ChessPiece('bishop', 'white', 7, 2))
-        self.whites.append(ChessPiece('queen', 'white', 7, 3))
-        self.whites.append(ChessPiece('king', 'white', 7, 4))
-        self.whites.append(ChessPiece('bishop', 'white', 7, 5))
-        self.whites.append(ChessPiece('knight', 'white', 7, 6))
-        self.whites.append(ChessPiece('rook', 'white', 7, 7))
-        # create black major pieces
-        self.blacks.append(ChessPiece('rook', 'black', 0, 0))
-        self.blacks.append(ChessPiece('knight', 'black', 0, 1))
-        self.blacks.append(ChessPiece('bishop', 'black', 0, 2))
-        self.blacks.append(ChessPiece('queen', 'black', 0, 3))
-        self.blacks.append(ChessPiece('king', 'black', 0, 4))
-        self.blacks.append(ChessPiece('bishop', 'black', 0, 5))
-        self.blacks.append(ChessPiece('knight', 'black', 0, 6))
-        self.blacks.append(ChessPiece('rook', 'black', 0, 7))
+        self.white.append(ChessPiece('rook', 'white', 7, 0))
+        self.white.append(ChessPiece('knight', 'white', 7, 1))
+        self.white.append(ChessPiece('bishop', 'white', 7, 2))
+        self.white.append(ChessPiece('queen', 'white', 7, 3))
+        self.white.append(ChessPiece('bishop', 'white', 7, 5))
+        self.white.append(ChessPiece('knight', 'white', 7, 6))
+        self.white.append(ChessPiece('rook', 'white', 7, 7))
+        self.black.append(ChessPiece('rook', 'black', 0, 0))
+        self.black.append(ChessPiece('knight', 'black', 0, 1))
+        self.black.append(ChessPiece('bishop', 'black', 0, 2))
+        self.black.append(ChessPiece('queen', 'black', 0, 3))
+        self.black.append(ChessPiece('bishop', 'black', 0, 5))
+        self.black.append(ChessPiece('knight', 'black', 0, 6))
+        self.black.append(ChessPiece('rook', 'black', 0, 7))
+        # keeps track of kings and puts them on their respective sides
+        self.__white_king = ChessPiece('king', 'white', 7, 4)
+        self.white.append(self.__white_king)
+        self.__black_king = ChessPiece('king', 'black', 0, 4)
+        self.black.append(self.__black_king)
         # place pieces on chess board in starting position
-        # and keep track of the kings
-        for w in self.whites:
-            if w.piece == 'king':
-                self.__white_king = w
+        for w in self.white:
             self.board[w.row][w.col] = w
-        for b in self.blacks:
-            if b.piece == 'king':
-                self.__black_king = b
-            self.board[b.row][b.col] = b
-            
-    def ray_trace(self, piece, x, y, n, can_capture=True, has_to_capture=False):
+        for b in self.black:
+            self.board[b.row][b.col] = b        
+    
+    # ray trace functions
+    def __pawn_diagonal(self, piece):
         moves = []
-        color = piece.color
+        row_ = piece.row
+        col_ = piece.col
+        diag = [[piece.dir,-1], [piece.dir,1]]
+        for d in diag:
+            row = row_ + d[0]
+            col = col_ + d[1]
+            if (row in range(8)) and (col in range(8)):
+                if self.board[row][col] != None:
+                    if self.board[row][col].color != piece.color: 
+                        moves.append(self.__row[row] + self.__col[col])
+        return moves
+    
+    def __pawn_forward(self, piece):
+        moves = []
+        row_ = piece.row
+        col_ = piece.col
+        forward = ([[piece.dir,0], [2*piece.dir,0]], [[piece.dir,0]])[piece.has_moved]
+        for f in forward:
+            row = row_ + f[0]
+            col = col_ + f[1]
+            if (row in range(8)) and (col in range(8)):
+                if self.board[row][col] == None:
+                    moves.append(self.__row[row] + self.__col[col])
+        return moves
+    
+    def __knight_jump(self, piece):
+        moves = []
+        row_ = piece.row
+        col_ = piece.col
+        jump = [[i, j] for i in [-2,2] for j in [-1,1]] + [[i, j] for i in [-1,1] for j in [-2,2]]
+        for j in jump:
+            row = row_ + j[0]
+            col = col_ + j[1]
+            if (row in range(8)) and (col in range(8)):
+                if self.board[row][col] != None:
+                    if self.board[row][col].color != piece.color:
+                        moves.append(self.__row[row] + self.__col[col])
+                else:
+                    moves.append(self.__row[row] + self.__col[col])
+        return moves
+    
+    def __horizontal_trace(self, piece, n):
+        return self.__ray_trace(piece, 0, -1, n) + self.__ray_trace(piece, 0, 1, n)
+    
+    def __vertical_trace(self, piece, n):
+        return self.__ray_trace(piece, -1, 0, n) + self.__ray_trace(piece, 1, 0, n)
+    
+    def __diagonal_trace(self, piece, n):
+        return self.__ray_trace(piece, -1, -1, n) + self.__ray_trace(piece, 1, 1, n) + \
+               self.__ray_trace(piece, -1, 1, n) + self.__ray_trace(piece, 1, -1, n)
+    
+    def __ray_trace(self, piece, r, c, n):
+        moves = []
         row = piece.row
         col = piece.col
-        while n != 0:
-            row += y
-            col += x
+        while n > 0:
+            row += r
+            col += c
             n -= 1
             if (row in range(8)) and (col in range(8)):
-                # pawn's diagnol capture
-                if has_to_capture == True:
-                    if self.board[row][col] == None:
-                        n = 0
-                    elif self.board[row][col].color != color:
-                        play.append([row, col])
-                        n = 0
-                # pawn's vertical movement and other piece's movements excluding knight
+                if self.board[row][col] != None: 
+                    if self.board[row][col].color != piece.color:
+                        moves.append(self.__row[row] + self.__col[col])
+                        n=0
+                    else:
+                        n=0
                 else:
-                    if self.board[row][col] == None: 
-                        moves.append([row, col])
-                    elif (can_capture == True) and (self.board[row][col].color != color):
-                        moves.append([row, col])
-                        n = 0
-                    elif self.board[row][col].color == color:
-                        n = 0
+                    moves.append(self.__row[row] + self.__col[col])
             else:
                 n = 0
         return moves
     
-    def pawn_plays(self, piece):
-        if piece.has_moved == False:
-            piece.set_plays(self.ray_trace(piece, piece.dir, 0, 2, False))
-            
-        else:
-            piece.set_plays(self.ray_trace(piece, piece.dir, 0, 1, False))
-        piece.set_plays(self.ray_trace(piece, piece.dir, 1, 1, True, True))
-        piece.set_plays(self.ray_trace(piece, piece.dir, 1, 1, True, True))
-        
-    def knight_plays(self, piece):
-        set_ = [[i, j] for i in [-2,2] for j in [-1,1]] + [[i, j] for i in [-1,1] for j in [-2,2]]
-        moves = []
-        color = piece.color
-        for s in set_:
-            row = piece.row
-            col = piece.col
-            row += s[0]
-            col += s[1]
-            if (row in range(8)) and (col in range(8)):
-                if self.board[row][col] == None:
-                    moves.append([row, col])
-                elif self.board[row][col].color != color:
-                    moves.append([row, col])
-        piece.set_plays(moves)
-        
-    def bishop_plays(self, piece):
-        diag = [[i, j] for i in [-1,1] for j in [-1,1]]
-        for i in diag:
-            piece.set_plays(self.ray_trace(piece, i[0], i[1], 7))
-    
-    def rook_plays(self, piece):
-        perp = [[0, j] for j in [-1,1]] + [[i, 0] for i in [-1,1]]
-        for i in perp:
-            piece.set_plays(self.ray_trace(piece, i[0], i[1], 7))
-            
-    def queen_plays(self, piece):
-        diag = [[i, j] for i in [-1,1] for j in [-1,1]]
-        perp = [[0, j] for j in [-1,1]] + [[i, 0] for i in [-1,1]]
-        for i in diag+perp:
-            piece.set_plays(self.ray_trace(piece, i[0], i[1], 7))
-            
-    def king_plays(self, piece):
-        diag = [[i, j] for i in [-1,1] for j in [-1,1]]
-        perp = [[0, j] for j in [-1,1]] + [[i, 0] for i in [-1,1]]
-        for i in diag+perp:
-            piece.set_plays(self.ray_trace(piece, i[0], i[1], 1))
-            
-    def piece_plays(self, piece):
+    # setters
+    def set_piece_moves(self, piece):
+        piece.moves = []
         if piece.piece == 'pawn':
-            self.pawn_plays(piece)
+            piece.moves += self.__pawn_diagonal(piece) + self.__pawn_forward(piece)
         elif piece.piece == 'knight':
-            self.knight_plays(piece)
+            piece.moves += self.__knight_jump(piece)
         elif piece.piece == 'bishop':
-            self.bishop_plays(piece)
+            piece.moves += self.__diagonal_trace(piece, 7)
         elif piece.piece == 'rook':
-            self.rook_plays(piece)
+            piece.moves += self.__horizontal_trace(piece, 7) + self.__vertical_trace(piece, 7)
         elif piece.piece == 'queen':
-            self.queen_plays(piece)
-        elif piece.piece == 'king':
-            self.king_plays(piece)
-
-    def set_plays(self):
-        for w in whites:
-            self.whites_plays = [list(play) for play in set(tuple(play) for play in self.whites_plays + w.plays)]
-        for b in blacks:
-            self.blacks_plays = [list(play) for play in set(tuple(play) for play in self.blacks_plays + b.plays)]
-
-    def valid_move(self, piece, row, col):
-        if [row,col] in piece.plays:
-            color = piece.color
-            rho = piece.row
-            kol = piece.col
-            capture = self.move(piece, row, col)
-            # moving piece puts self in check
-            if self.self_check(color) == True:
-                self.move(piece, rho, kol)
-                self.move(capture, row, col)
-                return False
-            # capture a piece
-            elif capture != None:
-                # remove piece from opponents playable pieces 
-                # and adds it to captures
-                if color == 'white':
-                    self.whites_captures.append(capture)
-                    self.whites.remove(capture)
-                else:
-                    self.blacks_captures.append(capture)
-                    self.blacks.remove(capture)
-            return True
-        else:
-            return False
-
+            piece.moves += self.__horizontal_trace(piece, 7) + self.__vertical_trace(piece, 7) + self.__diagonal_trace(piece, 7)
+        elif piece.piece == 'king':  
+            piece.moves += self.__horizontal_trace(piece, 1) + self.__vertical_trace(piece, 1) + self.__diagonal_trace(piece, 1)
+    
+    def set_moves(self):
+        for w in self.white:
+            self.set_piece_moves(w)
+        for b in self.black:
+            self.set_piece_moves(b)
+            
+    def set_move_set(self):
+        del self.white_move_set[:]
+        for w in self.white:
+            self.white_move_set += w.moves
+        self.white_move_set = list(set(self.white_move_set))
+        
+        del self.black_move_set[:]
+        for b in self.black:
+            self.black_move_set += b.moves
+        self.black_move_set = list(set(self.black_move_set)) 
+    
+    def set_playables(self):
+        # possible playables
+        del self.white_playables[:]
+        for w in self.white:
+            if len(w.moves) > 0:
+                self.white_playables.append(w)
+        # remove those that expose the king
+        print(self.white_playables)
+        for i in range(len(self.white_playables)):
+            chess_copy = copy.deepcopy(self)
+            print(chess_copy.white_playables[i])
+            piece = chess_copy.white_playables[i]
+            move_count = 0
+            for m in piece.moves:
+                row = chess_copy.__row.index(m[0])
+                col = chess_copy.__col.index(m[1])
+                if chess_copy.valid_move(piece, row, col) == True:
+                    move_count += 1
+            if move_count == 0:
+                self.white_playables.remove(self.white_playables[i])        
+        del self.black_playables[:]
+        for b in self.black:
+            if len(b.moves) > 0:
+                self.black_playables.append(b)
+        for i in range(len(self.black_playables)):
+            chess_copy = copy.deepcopy(self)
+            piece = chess_copy.black_playables[i]
+            move_count = 0
+            for m in piece.moves:
+                row = chess_copy.__row.index(m[0])
+                col = chess_copy.__col.index(m[1])
+                if chess_copy.valid_move(piece, row, col) == True:
+                    move_count += 1
+            if move_count == 0:
+                self.black_playables.remove(self.black_playables[i])
+                
+    # move returns capture, with value {None, ChessPiece}
     def move(self, piece, row, col):
         self.board[piece.row][piece.col] = None
-        # item at [row,col]
         capture = self.board[row][col]
-        # modify piece properties and moving
+        # update the piece's position
         piece.row = row
         piece.col = col
         self.board[row][col] = piece
         return capture
-                
-    def self_check(self, color):
-        if color == 'white':
-            if [self.__white_king.row, self.__white_king.col] in self.blacks_plays:
+
+    # booleans 
+    def is_check(self, king):
+        pos = self.__row[king.row] + self.__col[king.col]
+        if king.color == 'white':
+            if pos in self.black_move_set:
                 return True
         else:
-            if [self.__black_king.row, self.__black_king.col] in self.whites_plays:
+            if pos in self.white_move_set:
                 return True
         return False
+    
+    def exposes_king(self, piece):
+        if piece.color == 'white':
+            self.is_check(self.__white_king)
+        else:
+            self.is_check(self.__black_king)
+    
+    def valid_move(self, piece, row, col):
+        # make sure new position is in the piece's available moves
+        pos = self.__row[row] + self.__col[col]
+        if pos in piece.moves:
+            # make a deep copy
+            chess_copy = copy.deepcopy(self)
+            capture = chess_copy.move(piece, row, col)
+            chess_copy.set_moves()
+            chess.set_move_set()
+            return chess_copy.exposes_king(piece)
+        else: 
+            return False
+    
+    # returns moves, the piece can make that doesn't put it under threat
+    def alive_moves(self, piece):
+        if piece.color == 'white':
+            return [m for m in piece.moves if m not in self.black_move_set]
+        else:
+            return [m for m in piece.moves if m not in self.white_move_set]  
+    
+    def checkmate(self, king):
+        if self.check(king):
+            if len(self.alive_moves(king)) == 0:
+                # king is in check and can't move out of check
+                # incomplete checkmate
+                return True
+        return False    
+    
+    def valid_playable(self, piece):
+        self.set_playables()
+        if piece.color == 'white':
+            return piece in self.white_playables
+        else:
+            return piece in self.black_playables
+        
+    def get_valid_playable(self):
+        valid_playable = False
+        while valid_playable == False:
+            from_ = input('Where is the piece you want to move? ').upper()
+            row = self.__row.find(from_[0])
+            col = self.__col.find(from_[1])
+            piece = self.board[row][col]
+            valid_playable = self.valid_playable(piece)
+        return piece  
+    
+    def get_valid_move(self, piece):
+        valid_move = False
+        while valid_move == False:
+            msg = 'Where do you want to move the piece {}:{}? '.format(piece.symbol, piece.row_char+piece.col_char)
+            to_ = input(msg).upper()
+            row = self.__row.find(to_[0])
+            col = self.__col.find(to_[1])
+            valid_move = self.valid_move(piece, row, col)
+        return row, col
+    
+    def show_board(self):
+        s = '♡ '
+        for i in self.__col:
+            s += i + ' '
+        s += '\n'
+        for i, row in enumerate(self.board):
+            s += self.__row[i] + ' '
+            for r in row:
+                if r == None:
+                    s += '◻ '
+                else:
+                    s += r.symbol + ' '
+            s += '\n'
+        print(s)
+    
+    def new_game(self):
+        time = 0
+        checkmate = False
+        while checkmate == False:
+            if time % 2 == 0:
+                self.show_board()
+                print('White\'s turn')
+                self.set_moves()
+                self.set_move_set()
+                playable = self.get_valid_playable()
+                print(playable.moves)
+                row, col = self.get_valid_move(playable)
+                capture = self.move(playable, row, col)
+                time += 1
+            else:
+                self.show_board()
+                print('Black\'s turn')
+                self.set_moves()
+                self.set_move_set()
+                playable = self.get_valid_playable()
+                print(playable.moves)
+                row, col = self.get_valid_move(playable)
+                capture = self.move(playable, row, col)
+                time += 1
