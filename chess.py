@@ -1,5 +1,4 @@
 import copy
-import chesspiece
 
 class Chess():
     __row = '87654321'
@@ -169,13 +168,12 @@ class Chess():
             if len(w.moves) > 0:
                 self.white_playables.append(w)
         # remove those that expose the king
-        print(self.white_playables)
-        for i in range(len(self.white_playables)):
-            chess_copy = copy.deepcopy(self)
-            print(chess_copy.white_playables[i])
-            piece = chess_copy.white_playables[i]
+        for i in range(len(self.white_playables))[::-1]:
+            piece = self.white_playables[i]
             move_count = 0
             for m in piece.moves:
+                chess_copy = copy.deepcopy(self)
+                piece = chess_copy.white_playables[i]
                 row = chess_copy.__row.index(m[0])
                 col = chess_copy.__col.index(m[1])
                 if chess_copy.valid_move(piece, row, col) == True:
@@ -186,11 +184,12 @@ class Chess():
         for b in self.black:
             if len(b.moves) > 0:
                 self.black_playables.append(b)
-        for i in range(len(self.black_playables)):
-            chess_copy = copy.deepcopy(self)
-            piece = chess_copy.black_playables[i]
+        for i in range(len(self.black_playables))[::-1]:
+            piece = self.black_playables[i]
             move_count = 0
             for m in piece.moves:
+                chess_copy = copy.deepcopy(self)
+                piece = chess_copy.black_playables[i]
                 row = chess_copy.__row.index(m[0])
                 col = chess_copy.__col.index(m[1])
                 if chess_copy.valid_move(piece, row, col) == True:
@@ -221,20 +220,23 @@ class Chess():
     
     def exposes_king(self, piece):
         if piece.color == 'white':
-            self.is_check(self.__white_king)
+            return self.is_check(self.__white_king)
         else:
-            self.is_check(self.__black_king)
+            return self.is_check(self.__black_king)
     
     def valid_move(self, piece, row, col):
         # make sure new position is in the piece's available moves
+        row_ = piece.row
+        col_ = piece.col
         pos = self.__row[row] + self.__col[col]
         if pos in piece.moves:
             # make a deep copy
             chess_copy = copy.deepcopy(self)
+            piece = chess_copy.board[row_][col_]
             capture = chess_copy.move(piece, row, col)
             chess_copy.set_moves()
             chess.set_move_set()
-            return chess_copy.exposes_king(piece)
+            return chess_copy.exposes_king(piece) == False
         else: 
             return False
     
@@ -245,6 +247,7 @@ class Chess():
         else:
             return [m for m in piece.moves if m not in self.white_move_set]  
     
+    # INCOMPLETE
     def checkmate(self, king):
         if self.check(king):
             if len(self.alive_moves(king)) == 0:
@@ -273,7 +276,7 @@ class Chess():
     def get_valid_move(self, piece):
         valid_move = False
         while valid_move == False:
-            msg = 'Where do you want to move the piece {}:{}? '.format(piece.symbol, piece.row_char+piece.col_char)
+            msg = 'Where do you want to move the piece {}@{}? '.format(piece.symbol, piece.row_char+piece.col_char)
             to_ = input(msg).upper()
             row = self.__row.find(to_[0])
             col = self.__col.find(to_[1])
@@ -308,6 +311,7 @@ class Chess():
                 print(playable.moves)
                 row, col = self.get_valid_move(playable)
                 capture = self.move(playable, row, col)
+                self.board[row][col] = playable
                 time += 1
             else:
                 self.show_board()
