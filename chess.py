@@ -1,4 +1,5 @@
 import copy
+from chesspiece import *
 
 class Chess():
     __row = '87654321'
@@ -248,15 +249,14 @@ class Chess():
         else:
             return [m for m in piece.moves if m not in self.white_move_set]  
     
-    # INCOMPLETE
     def checkmate(self, king):
         if self.is_check(king):
             if len(self.alive_moves(king)) == 0:
                 # king is in check and can't move out of check
                 # incomplete checkmate
-                
+                print('Checkmate {} wins!'.format(king.color))
                 return True
-            print(king + ' is in check')
+            print(king, ' is in check')
         return False    
     
     def valid_playable(self, piece, time):
@@ -314,7 +314,8 @@ class Chess():
                 print(playable.moves)
                 row, col = self.get_valid_move(playable)
                 capture = self.move(playable, row, col)
-                print(self.checkmate(self.__black_king))
+                self.set_moves()
+                self.set_move_set()
                 checkmate = self.checkmate(self.__black_king)
                 time += 1
             else:
@@ -326,5 +327,11 @@ class Chess():
                 print(playable.moves)
                 row, col = self.get_valid_move(playable)
                 capture = self.move(playable, row, col)
+                self.set_moves()
+                self.set_move_set()
                 checkmate = self.checkmate(self.__white_king)
                 time += 1
+
+if __name__ == '__main__':
+    chess = Chess()
+    chess.new_game()
