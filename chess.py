@@ -205,6 +205,7 @@ class Chess():
         piece.row = row
         piece.col = col
         self.board[row][col] = piece
+        piece.has_moved = True
         return capture
 
     # booleans 
@@ -235,7 +236,7 @@ class Chess():
             piece = chess_copy.board[row_][col_]
             capture = chess_copy.move(piece, row, col)
             chess_copy.set_moves()
-            chess.set_move_set()
+            chess_copy.set_move_set()
             return chess_copy.exposes_king(piece) == False
         else: 
             return False
@@ -249,28 +250,30 @@ class Chess():
     
     # INCOMPLETE
     def checkmate(self, king):
-        if self.check(king):
+        if self.is_check(king):
             if len(self.alive_moves(king)) == 0:
                 # king is in check and can't move out of check
                 # incomplete checkmate
+                
                 return True
+            print(king + ' is in check')
         return False    
     
-    def valid_playable(self, piece):
+    def valid_playable(self, piece, time):
         self.set_playables()
-        if piece.color == 'white':
+        if time % 2 == 0:
             return piece in self.white_playables
         else:
             return piece in self.black_playables
         
-    def get_valid_playable(self):
+    def get_valid_playable(self, time):
         valid_playable = False
         while valid_playable == False:
             from_ = input('Where is the piece you want to move? ').upper()
             row = self.__row.find(from_[0])
             col = self.__col.find(from_[1])
             piece = self.board[row][col]
-            valid_playable = self.valid_playable(piece)
+            valid_playable = self.valid_playable(piece, time)
         return piece  
     
     def get_valid_move(self, piece):
@@ -307,19 +310,21 @@ class Chess():
                 print('White\'s turn')
                 self.set_moves()
                 self.set_move_set()
-                playable = self.get_valid_playable()
+                playable = self.get_valid_playable(time)
                 print(playable.moves)
                 row, col = self.get_valid_move(playable)
                 capture = self.move(playable, row, col)
-                self.board[row][col] = playable
+                print(self.checkmate(self.__black_king))
+                checkmate = self.checkmate(self.__black_king)
                 time += 1
             else:
                 self.show_board()
                 print('Black\'s turn')
                 self.set_moves()
                 self.set_move_set()
-                playable = self.get_valid_playable()
+                playable = self.get_valid_playable(time)
                 print(playable.moves)
                 row, col = self.get_valid_move(playable)
                 capture = self.move(playable, row, col)
+                checkmate = self.checkmate(self.__white_king)
                 time += 1
