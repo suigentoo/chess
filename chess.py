@@ -1,5 +1,5 @@
-import copy
 from chesspiece import *
+import copy
 
 class Chess():
     __row = '87654321'
@@ -253,8 +253,27 @@ class Chess():
         if self.is_check(king):
             if len(self.alive_moves(king)) == 0:
                 # king is in check and can't move out of check
-                # incomplete checkmate
-                print('Checkmate {} wins!'.format(king.color))
+                if king.color == 'white':
+                    winner = 'black'
+                    for piece in self.white:
+                        for m in piece.moves:
+                            print(m)
+                            row = self.__row.index(m[0])
+                            col = self.__col.index(m[1])
+                            if self.valid_move(piece, row, col):
+                                print(king, ' is in check')
+                                return False
+                else:
+                    winner = 'white'
+                    for piece in self.white:
+                        for m in piece.moves:
+                            print(m)
+                            row = self.__row.index(m[0])
+                            col = self.__col.index(m[1])
+                            if self.valid_move(piece, row, col):
+                                print(king, ' is in check')
+                                return False
+                print('Checkmate {} wins!'.format(winner))
                 return True
             print(king, ' is in check')
         return False    
@@ -314,6 +333,8 @@ class Chess():
                 print(playable.moves)
                 row, col = self.get_valid_move(playable)
                 capture = self.move(playable, row, col)
+                if capture != None:
+                    self.black.remove(capture)
                 self.set_moves()
                 self.set_move_set()
                 checkmate = self.checkmate(self.__black_king)
@@ -327,6 +348,8 @@ class Chess():
                 print(playable.moves)
                 row, col = self.get_valid_move(playable)
                 capture = self.move(playable, row, col)
+                if capture != None:
+                    self.white.remove(capture)
                 self.set_moves()
                 self.set_move_set()
                 checkmate = self.checkmate(self.__white_king)
