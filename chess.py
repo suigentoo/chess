@@ -257,7 +257,6 @@ class Chess():
                     winner = 'black'
                     for piece in self.white:
                         for m in piece.moves:
-                            print(m)
                             row = self.__row.index(m[0])
                             col = self.__col.index(m[1])
                             if self.valid_move(piece, row, col):
@@ -267,7 +266,6 @@ class Chess():
                     winner = 'white'
                     for piece in self.white:
                         for m in piece.moves:
-                            print(m)
                             row = self.__row.index(m[0])
                             col = self.__col.index(m[1])
                             if self.valid_move(piece, row, col):
