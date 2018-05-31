@@ -1,5 +1,24 @@
-from chesspiece import *
 import copy
+
+class ChessPiece():
+    __dict = {'white':{'pawn':'♙','rook':'♖','knight':'♘','bishop':'♗','king':'♔','queen':'♕'},
+              'black':{'pawn':'♟','rook':'♜','knight':'♞','bishop':'♝','king':'♚','queen':'♛'}}
+    __row = '87654321'
+    __col = 'ABCDEFGH'
+    def __init__(self, piece, color, row, col):
+        self.color = color
+        self.piece = piece
+        self.symbol = self.__dict[color][piece]
+        self.dir = (1, -1)[color == 'white']
+        self.row = row
+        self.col = col
+        self.row_char = self.__row[row]
+        self.col_char = self.__col[col]
+        self.has_moved = False
+        self.moves = []
+        
+    def __repr__(self):
+        return 'ChessPiece({}, {}{}, {})'.format(self.symbol, self.row_char, self.col_char, self.moves)
 
 class Chess():
     __row = '87654321'
@@ -321,9 +340,9 @@ class Chess():
     def new_game(self):
         time = 0
         checkmate = False
+        self.show_board()
         while checkmate == False:
             if time % 2 == 0:
-                self.show_board()
                 print('White\'s turn')
                 self.set_moves()
                 self.set_move_set()
@@ -336,9 +355,9 @@ class Chess():
                 self.set_moves()
                 self.set_move_set()
                 checkmate = self.checkmate(self.__black_king)
+                self.show_board()
                 time += 1
             else:
-                self.show_board()
                 print('Black\'s turn')
                 self.set_moves()
                 self.set_move_set()
@@ -351,8 +370,8 @@ class Chess():
                 self.set_moves()
                 self.set_move_set()
                 checkmate = self.checkmate(self.__white_king)
+                self.show_board()
                 time += 1
-
+                
 if __name__ == '__main__':
-    chess = Chess()
-    chess.new_game()
+    Chess().new_game()
