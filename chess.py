@@ -20,6 +20,8 @@ class ChessPiece():
     def __repr__(self):
         return 'ChessPiece({}, {}{}, {})'.format(self.symbol, self.row_char, self.col_char, self.moves)
 
+import copy
+
 class Chess():
     __row = '87654321'
     __col = 'ABCDEFGH'
@@ -39,6 +41,8 @@ class Chess():
         # contains playable pieces, those that can move
         self.white_playables = []
         self.black_playables = []
+        # history
+        self.history = []
         self.setup()
 
     def setup(self):
@@ -47,11 +51,15 @@ class Chess():
         for col in range(8):
             self.white.append(ChessPiece('pawn', 'white', 6, col))
             self.black.append(ChessPiece('pawn', 'black', 1, col))
-        # create white major pieces
+        # keeps track of kings and puts them on their respective sides
+        self.__white_king = ChessPiece('king', 'white', 7, 4)
+        self.__black_king = ChessPiece('king', 'black', 0, 4)
+        # create major pieces
         self.white.append(ChessPiece('rook', 'white', 7, 0))
         self.white.append(ChessPiece('knight', 'white', 7, 1))
         self.white.append(ChessPiece('bishop', 'white', 7, 2))
         self.white.append(ChessPiece('queen', 'white', 7, 3))
+        self.white.append(self.__white_king)
         self.white.append(ChessPiece('bishop', 'white', 7, 5))
         self.white.append(ChessPiece('knight', 'white', 7, 6))
         self.white.append(ChessPiece('rook', 'white', 7, 7))
@@ -59,14 +67,10 @@ class Chess():
         self.black.append(ChessPiece('knight', 'black', 0, 1))
         self.black.append(ChessPiece('bishop', 'black', 0, 2))
         self.black.append(ChessPiece('queen', 'black', 0, 3))
+        self.black.append(self.__black_king)
         self.black.append(ChessPiece('bishop', 'black', 0, 5))
         self.black.append(ChessPiece('knight', 'black', 0, 6))
         self.black.append(ChessPiece('rook', 'black', 0, 7))
-        # keeps track of kings and puts them on their respective sides
-        self.__white_king = ChessPiece('king', 'white', 7, 4)
-        self.white.append(self.__white_king)
-        self.__black_king = ChessPiece('king', 'black', 0, 4)
-        self.black.append(self.__black_king)
         # place pieces on chess board in starting position
         for w in self.white:
             self.board[w.row][w.col] = w
@@ -163,21 +167,16 @@ class Chess():
             piece.moves += self.__horizontal_trace(piece, 7) + self.__vertical_trace(piece, 7) + self.__diagonal_trace(piece, 7)
         elif piece.piece == 'king':  
             piece.moves += self.__horizontal_trace(piece, 1) + self.__vertical_trace(piece, 1) + self.__diagonal_trace(piece, 1)
-    
-    def set_moves(self):
-        for w in self.white:
-            self.set_piece_moves(w)
-        for b in self.black:
-            self.set_piece_moves(b)
             
-    def set_move_set(self):
+    def set_moves(self):
         del self.white_move_set[:]
         for w in self.white:
+            self.set_piece_moves(w)
             self.white_move_set += w.moves
         self.white_move_set = list(set(self.white_move_set))
-        
         del self.black_move_set[:]
         for b in self.black:
+            self.set_piece_moves(b)
             self.black_move_set += b.moves
         self.black_move_set = list(set(self.black_move_set)) 
     
@@ -188,34 +187,34 @@ class Chess():
             if len(w.moves) > 0:
                 self.white_playables.append(w)
         # remove those that expose the king
-        for i in range(len(self.white_playables))[::-1]:
-            piece = self.white_playables[i]
+        for i in range(len(self.white_playables)):
+            piece = self.white_playables[~i]
             move_count = 0
             for m in piece.moves:
                 chess_copy = copy.deepcopy(self)
-                piece = chess_copy.white_playables[i]
+                piece = chess_copy.white_playables[~i]
                 row = chess_copy.__row.index(m[0])
                 col = chess_copy.__col.index(m[1])
                 if chess_copy.valid_move(piece, row, col) == True:
                     move_count += 1
             if move_count == 0:
-                self.white_playables.remove(self.white_playables[i])        
+                self.white_playables.remove(self.white_playables[~i])        
         del self.black_playables[:]
         for b in self.black:
             if len(b.moves) > 0:
                 self.black_playables.append(b)
-        for i in range(len(self.black_playables))[::-1]:
-            piece = self.black_playables[i]
+        for i in range(len(self.black_playables)):
+            piece = self.black_playables[~i]
             move_count = 0
             for m in piece.moves:
                 chess_copy = copy.deepcopy(self)
-                piece = chess_copy.black_playables[i]
+                piece = chess_copy.black_playables[~i]
                 row = chess_copy.__row.index(m[0])
                 col = chess_copy.__col.index(m[1])
                 if chess_copy.valid_move(piece, row, col) == True:
                     move_count += 1
             if move_count == 0:
-                self.black_playables.remove(self.black_playables[i])
+                self.black_playables.remove(self.black_playables[~i])
                 
     # move returns capture, with value {None, ChessPiece}
     def move(self, piece, row, col):
@@ -256,7 +255,6 @@ class Chess():
             piece = chess_copy.board[row_][col_]
             capture = chess_copy.move(piece, row, col)
             chess_copy.set_moves()
-            chess_copy.set_move_set()
             return chess_copy.exposes_king(piece) == False
         else: 
             return False
@@ -264,6 +262,7 @@ class Chess():
     # returns moves, the piece can make that doesn't put it under threat
     def alive_moves(self, piece):
         if piece.color == 'white':
+            
             return [m for m in piece.moves if m not in self.black_move_set]
         else:
             return [m for m in piece.moves if m not in self.white_move_set]  
@@ -283,7 +282,7 @@ class Chess():
                                 return False
                 else:
                     winner = 'white'
-                    for piece in self.white:
+                    for piece in self.black:
                         for m in piece.moves:
                             row = self.__row.index(m[0])
                             col = self.__col.index(m[1])
@@ -323,7 +322,15 @@ class Chess():
         return row, col
     
     def show_board(self):
-        s = '♡ '
+        s = 'black: ['
+        for b in self.black:
+            s += b.symbol
+        s += ']    '
+        s += 'black capture: ['
+        for b in self.black_captures:
+            s += b.symbol
+        s += ']\n'
+        s += '♡ '
         for i in self.__col:
             s += i + ' '
         s += '\n'
@@ -335,40 +342,49 @@ class Chess():
                 else:
                     s += r.symbol + ' '
             s += '\n'
+        s += 'white: ['
+        for w in self.white:
+            s += w.symbol
+        s += ']    '
+        s += 'white capture: ['
+        for w in self.white_captures:
+            s += w.symbol
+        s += ']\n'
         print(s)
-    
+         
     def new_game(self):
         time = 0
         checkmate = False
+        self.set_moves()
         self.show_board()
         while checkmate == False:
             if time % 2 == 0:
                 print('White\'s turn')
                 self.set_moves()
-                self.set_move_set()
+                self.set_playables()
                 playable = self.get_valid_playable(time)
                 print(playable.moves)
                 row, col = self.get_valid_move(playable)
                 capture = self.move(playable, row, col)
                 if capture != None:
                     self.black.remove(capture)
+                    self.white_captures.append(capture)
                 self.set_moves()
-                self.set_move_set()
                 checkmate = self.checkmate(self.__black_king)
                 self.show_board()
                 time += 1
             else:
                 print('Black\'s turn')
                 self.set_moves()
-                self.set_move_set()
+                self.set_playables()
                 playable = self.get_valid_playable(time)
                 print(playable.moves)
                 row, col = self.get_valid_move(playable)
                 capture = self.move(playable, row, col)
                 if capture != None:
                     self.white.remove(capture)
+                    self.black_captures.append(capture)
                 self.set_moves()
-                self.set_move_set()
                 checkmate = self.checkmate(self.__white_king)
                 self.show_board()
                 time += 1
