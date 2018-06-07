@@ -20,9 +20,9 @@ class ChessPiece():
     def __repr__(self):
         return 'ChessPiece({}, {}{}, {})'.format(self.symbol, self.row_char, self.col_char, self.moves)
 
-import copy
-
 class Chess():
+    __dict = {'white':{'pawn':'♙','rook':'♖','knight':'♘','bishop':'♗','king':'♔','queen':'♕'},
+              'black':{'pawn':'♟','rook':'♜','knight':'♞','bishop':'♝','king':'♚','queen':'♛'}}
     __row = '87654321'
     __col = 'ABCDEFGH'
     __white_king = None
@@ -41,7 +41,7 @@ class Chess():
         # contains playable pieces, those that can move
         self.white_playables = []
         self.black_playables = []
-        # history
+        # play history
         self.history = []
         self.setup()
 
@@ -187,34 +187,34 @@ class Chess():
             if len(w.moves) > 0:
                 self.white_playables.append(w)
         # remove those that expose the king
-        for i in range(len(self.white_playables)):
-            piece = self.white_playables[~i]
+        for i in range(len(self.white_playables))[::-1]:
+            piece = self.white_playables[i]
             move_count = 0
             for m in piece.moves:
                 chess_copy = copy.deepcopy(self)
-                piece = chess_copy.white_playables[~i]
+                piece = chess_copy.white_playables[i]
                 row = chess_copy.__row.index(m[0])
                 col = chess_copy.__col.index(m[1])
                 if chess_copy.valid_move(piece, row, col) == True:
                     move_count += 1
             if move_count == 0:
-                self.white_playables.remove(self.white_playables[~i])        
+                self.white_playables.remove(self.white_playables[i])        
         del self.black_playables[:]
         for b in self.black:
             if len(b.moves) > 0:
                 self.black_playables.append(b)
-        for i in range(len(self.black_playables)):
-            piece = self.black_playables[~i]
+        for i in range(len(self.black_playables))[::-1]:
+            piece = self.black_playables[i]
             move_count = 0
             for m in piece.moves:
                 chess_copy = copy.deepcopy(self)
-                piece = chess_copy.black_playables[~i]
+                piece = chess_copy.black_playables[i]
                 row = chess_copy.__row.index(m[0])
                 col = chess_copy.__col.index(m[1])
                 if chess_copy.valid_move(piece, row, col) == True:
                     move_count += 1
             if move_count == 0:
-                self.black_playables.remove(self.black_playables[~i])
+                self.black_playables.remove(self.black_playables[i])
                 
     # move returns capture, with value {None, ChessPiece}
     def move(self, piece, row, col):
@@ -309,7 +309,7 @@ class Chess():
             col = self.__col.find(from_[1])
             piece = self.board[row][col]
             valid_playable = self.valid_playable(piece, time)
-        return piece  
+        return piece, from_
     
     def get_valid_move(self, piece):
         valid_move = False
@@ -319,7 +319,19 @@ class Chess():
             row = self.__row.find(to_[0])
             col = self.__col.find(to_[1])
             valid_move = self.valid_move(piece, row, col)
-        return row, col
+        return row, col, to_
+    
+    def promote(self, piece):
+        if piece.piece == 'pawn':
+            if piece.row == 0 or piece.row == 7:
+                promote_set = ['knight', 'bishop', 'rook', 'queen']
+                valid_input = False
+                while valid_input == False:
+                    promote = input('What do you want to promote your pawn to?').lower()
+                    if promote in promote_set:
+                        valid_input = True
+                piece.piece = promote
+                piece.symbol = self.__dict[piece.color][piece.piece]
     
     def show_board(self):
         s = 'black: ['
@@ -362,13 +374,16 @@ class Chess():
                 print('White\'s turn')
                 self.set_moves()
                 self.set_playables()
-                playable = self.get_valid_playable(time)
+                playable, from_ = self.get_valid_playable(time)
                 print(playable.moves)
-                row, col = self.get_valid_move(playable)
+                row, col, to_ = self.get_valid_move(playable)
                 capture = self.move(playable, row, col)
                 if capture != None:
                     self.black.remove(capture)
                     self.white_captures.append(capture)
+                self.promote(playable)
+                move_tuple = (playable, from_, capture, to_)
+                self.history.append(move_tuple)
                 self.set_moves()
                 checkmate = self.checkmate(self.__black_king)
                 self.show_board()
@@ -377,13 +392,16 @@ class Chess():
                 print('Black\'s turn')
                 self.set_moves()
                 self.set_playables()
-                playable = self.get_valid_playable(time)
+                playable, from_ = self.get_valid_playable(time)
                 print(playable.moves)
-                row, col = self.get_valid_move(playable)
+                row, col, to_ = self.get_valid_move(playable)
                 capture = self.move(playable, row, col)
                 if capture != None:
                     self.white.remove(capture)
                     self.black_captures.append(capture)
+                self.promote(playable)
+                move_tuple = (playable, from_, capture, to_)
+                self.history.append(move_tuple)
                 self.set_moves()
                 checkmate = self.checkmate(self.__white_king)
                 self.show_board()
