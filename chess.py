@@ -382,15 +382,15 @@ class Chess():
                     self.black.remove(capture)
                     self.white_captures.append(capture)
                 # stalemate 50 turn rule
-                if playable.piece != 'pawn' | capture != None:
-                    turn += 1
-                else:
+                if (playable.piece == 'pawn') | (capture != None):
                     turn = 0
+                else:
+                    turn +=1
                 if turn >= 50:
                     stalemate = input('Want to call stalemate?').lower()
                     if stalemate in ['y', 'yes']:
                         print('Stalemate!')
-                        return
+                        returnn
                 self.promote(playable)
                 move_tuple = (playable, from_, capture, to_)
                 self.history.append(move_tuple)
@@ -409,10 +409,10 @@ class Chess():
                 if capture != None:
                     self.white.remove(capture)
                     self.black_captures.append(capture)
-                if playable.piece != 'pawn' | capture != None:
-                    turn += 1
-                else:
+                if (playable.piece == 'pawn') | (capture != None):
                     turn = 0
+                else:
+                    turn +=1
                 if turn >= 50:
                     stalemate = input('Want to call stalemate?').lower()
                     if stalemate in ['y', 'yes']:
